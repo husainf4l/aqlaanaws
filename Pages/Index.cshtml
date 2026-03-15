@@ -22,7 +22,7 @@
     }
 </div>
 
-@if (!string.IsNullOrEmpty(Model.ErrorMessage) && !Request.Query.ContainsKey("error"))
+@if (!string.IsNullOrEmpty(Model.ErrorMessage) && !Request.Query.ContainsKey("error") && !Model.ErrorMessage.Contains("No S3 profile"))
 {
     <div class="ds-alert ds-alert-destructive" role="alert">@Model.ErrorMessage</div>
 }
@@ -33,19 +33,31 @@
 
 @if (string.IsNullOrEmpty(Model.CurrentBucket))
 {
-    <div style="text-align: left; max-width: 28rem; padding: var(--ds-space-8) 0 var(--ds-space-4);">
-        <span style="font-size:2rem;display:block;opacity:0.45;margin-bottom:12px;">🪣</span>
-        <p class="ds-title mb-1">Choose a bucket</p>
-        <p class="ds-body mb-0" style="color:var(--ds-muted-foreground);">Select a bucket below to view and manage your files.</p>
-    </div>
-    @if (Model.Buckets.Count > 0)
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage) && Model.ErrorMessage.Contains("No S3 profile"))
     {
-        <div class="ds-card ds-bucket-list p-0 mt-3" style="max-width: 28rem;">
-            @foreach (var b in Model.Buckets)
-            {
-                <a class="d-block px-4 py-3 text-decoration-none text-body ds-bucket-item" asp-page="/Index" asp-route-bucket="@b">@b</a>
-            }
+        <div class="ds-empty" style="text-align:left;padding-left:0;">
+            <div class="ds-empty-icon" style="text-align:left;">🔑</div>
+            <p class="ds-empty-title mb-1">S3 credentials not set up</p>
+            <p class="ds-empty-sub mb-4">Configure your AWS access key, secret, region, and bucket to get started.</p>
+            <a class="ds-btn ds-btn-primary" asp-page="/Account/S3Profile">Set up S3 Profile</a>
         </div>
+    }
+    else
+    {
+        <div style="text-align: left; max-width: 28rem; padding: var(--ds-space-8) 0 var(--ds-space-4);">
+            <span style="font-size:2rem;display:block;opacity:0.45;margin-bottom:12px;">🪣</span>
+            <p class="ds-title mb-1">Choose a bucket</p>
+            <p class="ds-body mb-0" style="color:var(--ds-muted-foreground);">Select a bucket below to view and manage your files.</p>
+        </div>
+        @if (Model.Buckets.Count > 0)
+        {
+            <div class="ds-card ds-bucket-list p-0 mt-3" style="max-width: 28rem;">
+                @foreach (var b in Model.Buckets)
+                {
+                    <a class="d-block px-4 py-3 text-decoration-none text-body ds-bucket-item" asp-page="/Index" asp-route-bucket="@b">@b</a>
+                }
+            </div>
+        }
     }
 }
 else
