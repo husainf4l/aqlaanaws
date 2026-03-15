@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+        (function(){
+            var t=localStorage.getItem('theme');
+            var dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;
+            document.documentElement.setAttribute('data-theme',(t==='dark'||(t===null&&dark))?'dark':'light');
+        })();
+    </script>
+    <title>@ViewData["Title"] – S3 Manager</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/AqlaAwsS3Manager.styles.css" asp-append-version="true" />
+</head>
+<body>
+
+<header class="ds-nav" role="banner">
+    <div class="ds-container ds-nav-inner">
+        <a class="ds-nav-brand" asp-area="" asp-page="/Index">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="flex-shrink:0;">
+                <rect x="2" y="7" width="16" height="11" rx="3" fill="currentColor" opacity="0.12"/>
+                <rect x="2" y="7" width="16" height="11" rx="3" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M7 7V5.5a3 3 0 0 1 6 0V7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="10" cy="13" r="1.5" fill="currentColor"/>
+            </svg>
+            S3 Manager
+        </a>
+
+        <button class="navbar-toggler border-0 d-sm-none"
+                type="button" data-bs-toggle="collapse" data-bs-target="#navMain"
+                aria-controls="navMain" aria-expanded="false" aria-label="Toggle navigation"
+                style="padding:5px 7px;border-radius:8px;background:var(--ds-fill-1);color:var(--ds-label-1);">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse flex-grow-0" id="navMain">
+            <ul class="ds-nav-links">
+                <li><a asp-area="" asp-page="/Index">Files</a></li>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <li><a asp-page="/Account/S3Profile">S3 Profile</a></li>
+                    <li><a asp-page="/Account/Activity">Activity</a></li>
+                    <li><span class="ds-nav-user">@User.Identity.Name</span></li>
+                    <li>
+                        <form asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Index")" method="post" style="display:inline;">
+                            <button type="submit" class="ds-btn ds-btn-secondary ds-btn-sm">Sign out</button>
+                        </form>
+                    </li>
+                }
+                else
+                {
+                    <li><a class="ds-btn ds-btn-ghost ds-btn-sm" asp-page="/Account/Login">Sign in</a></li>
+                    <li><a class="ds-btn ds-btn-primary ds-btn-sm" asp-page="/Account/Register">Get started</a></li>
+                }
+                <li style="margin-left:4px;">
+                    <button type="button" class="ds-btn-icon" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+                        <span id="themeIcon"></span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+</header>
+
+<main role="main" class="ds-container" style="padding-top:2.5rem;padding-bottom:5rem;min-height:calc(100vh - var(--ds-nav-height) - 56px);">
+    @RenderBody()
+</main>
+
+<footer style="border-top:1px solid var(--ds-separator);padding:16px 0;" role="contentinfo">
+    <div class="ds-container" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:0.8125rem;color:var(--ds-label-3);">&copy; 2026 S3 Manager</span>
+        <a class="ds-link" style="font-size:0.8125rem;" asp-area="" asp-page="/Privacy">Privacy</a>
+    </div>
+</footer>
+
+<div id="dsToaster" class="ds-toaster" aria-live="polite" aria-atomic="true"></div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+<script>
+(function(){
+    var icon=document.getElementById('themeIcon');
+    function setIcon(){icon.textContent=document.documentElement.getAttribute('data-theme')==='dark'?'☀️':'🌙';}
+    setIcon();
+    document.getElementById('themeToggle').addEventListener('click',function(){
+        var next=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+        document.documentElement.setAttribute('data-theme',next);
+        localStorage.setItem('theme',next);
+        setIcon();
+    });
+})();
+(function(){
+    var toaster=document.getElementById('dsToaster');
+    window.showToast=function(type,message){
+        if(!toaster||!message)return;
+        var t=document.createElement('div');
+        t.className='ds-toast ds-toast-'+(type==='error'?'error':'success');
+        t.setAttribute('role','alert');
+        var esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+        t.innerHTML='<span style="flex:1;">'+esc(message)+'</span><button type="button" class="ds-toast-close" aria-label="Close">&times;</button>';
+        t.querySelector('.ds-toast-close').onclick=function(){t.remove();};
+        toaster.appendChild(t);
+        setTimeout(function(){if(t.parentNode)t.remove();},5500);
+    };
+    var params=new URLSearchParams(window.location.search);
+    var msg=params.get('message'),err=params.get('error');
+    if(msg)showToast('success',msg);
+    if(err)showToast('error',err);
+    if((msg||err)&&history.replaceState){params.delete('message');params.delete('error');history.replaceState(null,'',window.location.pathname+(params.toString()?'?'+params.toString():'')+window.location.hash);}
+})();
+</script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

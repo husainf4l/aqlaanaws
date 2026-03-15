@@ -1,0 +1,498 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "S3 Storage";
+    string PreviewUrl(string bucket, string key) => Url.Page("/Preview", new { bucket, key }) ?? "#";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+        <h1 class="ds-headline mb-0">Files</h1>
+        @if (!string.IsNullOrEmpty(Model.CurrentBucket))
+        {
+            <p class="ds-body mb-0 mt-1" style="color:var(--ds-muted-foreground);font-size:0.875rem;">@Model.CurrentBucket</p>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(Model.CurrentBucket))
+    {
+        <div class="d-flex gap-2">
+            <a class="ds-btn ds-btn-outline" asp-page="/CreateFolder" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@Model.CurrentPrefix">New Folder</a>
+            <a class="ds-btn ds-btn-primary" asp-page="/Upload" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@Model.CurrentPrefix">Upload</a>
+        </div>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage) && !Request.Query.ContainsKey("error"))
+{
+    <div class="ds-alert ds-alert-destructive" role="alert">@Model.ErrorMessage</div>
+}
+@if (!string.IsNullOrEmpty(Model.Message) && !Request.Query.ContainsKey("message"))
+{
+    <div class="ds-alert ds-alert-success" role="alert">@Model.Message</div>
+}
+
+@if (string.IsNullOrEmpty(Model.CurrentBucket))
+{
+    <div style="text-align: left; max-width: 28rem; padding: var(--ds-space-8) 0 var(--ds-space-4);">
+        <span style="font-size:2rem;display:block;opacity:0.45;margin-bottom:12px;">🪣</span>
+        <p class="ds-title mb-1">Choose a bucket</p>
+        <p class="ds-body mb-0" style="color:var(--ds-muted-foreground);">Select a bucket below to view and manage your files.</p>
+    </div>
+    @if (Model.Buckets.Count > 0)
+    {
+        <div class="ds-card ds-bucket-list p-0 mt-3" style="max-width: 28rem;">
+            @foreach (var b in Model.Buckets)
+            {
+                <a class="d-block px-4 py-3 text-decoration-none text-body ds-bucket-item" asp-page="/Index" asp-route-bucket="@b">@b</a>
+            }
+        </div>
+    }
+}
+else
+{
+    <nav class="ds-breadcrumb" aria-label="breadcrumb">
+        @if (!string.IsNullOrEmpty(Model.CurrentPrefix))
+        {
+            var parentPrefix = Model.CurrentPrefix.Contains('/') ? Model.CurrentPrefix[..Model.CurrentPrefix.LastIndexOf('/')] : null;
+            <a class="ds-breadcrumb-back ds-btn ds-btn-outline ds-btn-sm" asp-page="/Index" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@parentPrefix" aria-label="Back to parent">← Back</a>
+        }
+        @for (var i = 0; i < Model.Breadcrumbs.Count; i++)
+        {
+            var part = Model.Breadcrumbs[i];
+            @if (i > 0) { <span class="ds-breadcrumb-sep">/</span> }
+            @if (i == Model.Breadcrumbs.Count - 1)
+            {
+                <span aria-current="page">@part.Label</span>
+            }
+            else
+            {
+                <a asp-page="/Index" asp-route-bucket="@part.Bucket" asp-route-prefix="@part.Prefix">@part.Label</a>
+            }
+        }
+    </nav>
+
+    <div class="ds-toolbar-sticky d-flex flex-wrap gap-2 align-items-center">
+        <div style="position:relative;flex:1;min-width:160px;max-width:22rem;">
+            <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ds-muted-foreground);pointer-events:none;" width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <input type="search" class="form-control ds-input" id="searchBox" placeholder="Search" style="padding-left:32px;" aria-label="Search files and folders" title="Press / to focus" />
+        </div>
+        <select class="form-select ds-input" id="filterType" style="width:auto;min-width:120px;" aria-label="Filter by type">
+            <option value="all">All items</option>
+            <option value="file">Files only</option>
+            <option value="folder">Folders only</option>
+        </select>
+        <span style="font-size:0.8125rem;color:var(--ds-muted-foreground);" id="searchResultCount"></span>
+        <button type="button" class="ds-btn ds-btn-destructive ds-btn-sm ms-auto" id="bulkDeleteBtn" style="display:none;">Delete selected</button>
+        <span id="bulkContext" data-bucket="@Model.CurrentBucket" data-prefix="@Model.CurrentPrefix" hidden aria-hidden="true"></span>
+    </div>
+
+    <div class="ds-card overflow-hidden">
+        @if (Model.Items.Count > 0)
+        {
+        <div class="ds-file-table-wrap">
+        <table class="ds-table mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 2rem;"><input type="checkbox" id="selectAll" aria-label="Select all files" title="Select all files" /></th>
+                    <th style="width: 2.5rem;"></th>
+                    <th>Name</th>
+                    <th class="ds-cell-end">Size</th>
+                    <th>Last modified</th>
+                    <th style="width: 11rem;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="fileListBody">
+                @foreach (var item in Model.Items)
+                {
+                    <tr class="ds-list-row" data-search-name="@item.Name" data-item-type="@(item.IsFolder ? "folder" : "file")">
+                        <td>@if (!item.IsFolder) { <input type="checkbox" class="bulk-key" name="key" value="@item.Key" aria-label="Select @item.Name" /> } else { <span></span> }</td>
+                        <td>
+                            @if (item.IsFolder) { <span class="ds-file-type" aria-hidden="true">📁</span> }
+                            else { <span class="ds-file-type @GetFileTypeClass(item.Name)" aria-hidden="true">@GetFileTypeIcon(item.Name)</span> }
+                        </td>
+                        <td>
+                            @if (item.IsFolder)
+                            {
+                                <a class="ds-link" asp-page="/Index" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@item.Key.TrimEnd('/')">@item.Name</a>
+                            }
+                            else
+                            {
+                                @item.Name
+                            }
+                        </td>
+                        <td class="ds-cell-end ds-cell-muted ds-tabular">
+                            @(item.Size.HasValue ? FormatSize(item.Size.Value) : "—")
+                        </td>
+                        <td class="ds-cell-muted">@(item.LastModified?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
+                        <td>
+                            @if (item.IsFolder)
+                            {
+                                <div class="dropdown">
+                                    <button type="button" class="ds-btn-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for @item.Name">⋮</button>
+                                    <ul class="dropdown-menu dropdown-menu-end ds-dropdown">
+                                        <li><a class="dropdown-item ds-dropdown-item" asp-page="/FolderAction" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@item.Key.TrimEnd('/')" asp-route-action="copy">Copy</a></li>
+                                        <li><a class="dropdown-item ds-dropdown-item" asp-page="/FolderAction" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@item.Key.TrimEnd('/')" asp-route-action="move">Move</a></li>
+                                        <li><hr class="dropdown-divider" /></li>
+                                        <li><a class="dropdown-item ds-dropdown-item text-danger ds-confirm-link" href="@Url.Page("/DeleteFolder", new { bucket = Model.CurrentBucket, prefix = item.Key.TrimEnd('/'), currentPrefix = Model.CurrentPrefix })" data-confirm="Delete folder &quot;@item.Name&quot; and all its contents?">Delete</a></li>
+                                    </ul>
+                                </div>
+                            }
+                            else
+                            {
+                                var previewType = GetPreviewType(item.Name);
+                                var canPreview = previewType != "none";
+                                <div class="dropdown">
+                                    <button type="button" class="ds-btn-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for @item.Name">⋮</button>
+                                    <ul class="dropdown-menu dropdown-menu-end ds-dropdown">
+                                        @if (canPreview)
+                                        {
+                                            <li><button type="button" class="dropdown-item ds-dropdown-item preview-btn" data-preview-type="@previewType" data-preview-url="@PreviewUrl(Model.CurrentBucket!, item.Key)" data-name="@item.Name">Preview</button></li>
+                                        }
+                                        <li><a class="dropdown-item ds-dropdown-item" asp-page="/Download" asp-route-bucket="@Model.CurrentBucket" asp-route-key="@item.Key">Download</a></li>
+                                        <li><hr class="dropdown-divider" /></li>
+                                        <li><a class="dropdown-item ds-dropdown-item text-danger ds-confirm-link" href="@Url.Page("/Delete", new { bucket = Model.CurrentBucket, key = item.Key, prefix = Model.CurrentPrefix })" data-confirm="Delete &quot;@item.Name&quot;?">Delete</a></li>
+                                    </ul>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+        @* Mobile card list (same data) *@
+        <div class="ds-file-list-cards" id="fileListCards" style="display: none;">
+            @foreach (var item in Model.Items)
+            {
+                <div class="ds-file-card ds-list-row" data-search-name="@item.Name" data-item-type="@(item.IsFolder ? "folder" : "file")">
+                    <div class="ds-file-card-icon">
+                        @if (item.IsFolder) { <span class="ds-file-type">📁</span> }
+                        else { <span class="ds-file-type @GetFileTypeClass(item.Name)">@GetFileTypeIcon(item.Name)</span> }
+                    </div>
+                    <div class="ds-file-card-main">
+                        @if (item.IsFolder)
+                        {
+                            <a class="ds-file-card-name ds-link" asp-page="/Index" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@item.Key.TrimEnd('/')">@item.Name</a>
+                        }
+                        else
+                        {
+                            <span class="ds-file-card-name">@item.Name</span>
+                        }
+                        <div class="ds-file-card-meta">
+                            @(item.Size.HasValue ? FormatSize(item.Size.Value) : "—") · @(item.LastModified?.ToString("yyyy-MM-dd HH:mm") ?? "—")
+                        </div>
+                    </div>
+                    <div class="ds-file-card-actions">
+                        <div class="dropdown">
+                            <button type="button" class="ds-btn-icon dropdown-toggle" data-bs-toggle="dropdown" aria-label="Actions">⋮</button>
+                            <ul class="dropdown-menu dropdown-menu-end ds-dropdown">
+                                @if (item.IsFolder)
+                                {
+                                    <li><a class="dropdown-item ds-dropdown-item" asp-page="/FolderAction" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@item.Key.TrimEnd('/')" asp-route-action="copy">Copy</a></li>
+                                    <li><a class="dropdown-item ds-dropdown-item" asp-page="/FolderAction" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@item.Key.TrimEnd('/')" asp-route-action="move">Move</a></li>
+                                    <li><a class="dropdown-item ds-dropdown-item text-danger ds-confirm-link" href="@Url.Page("/DeleteFolder", new { bucket = Model.CurrentBucket, prefix = item.Key.TrimEnd('/'), currentPrefix = Model.CurrentPrefix })" data-confirm="Delete folder &quot;@item.Name&quot;?">Delete</a></li>
+                                }
+                                else
+                                {
+                                    @if (GetPreviewType(item.Name) != "none")
+                                    {
+                                        <li><button type="button" class="dropdown-item ds-dropdown-item preview-btn" data-preview-type="@GetPreviewType(item.Name)" data-preview-url="@PreviewUrl(Model.CurrentBucket!, item.Key)" data-name="@item.Name">Preview</button></li>
+                                    }
+                                    <li><a class="dropdown-item ds-dropdown-item" asp-page="/Download" asp-route-bucket="@Model.CurrentBucket" asp-route-key="@item.Key">Download</a></li>
+                                    <li><a class="dropdown-item ds-dropdown-item text-danger ds-confirm-link" href="@Url.Page("/Delete", new { bucket = Model.CurrentBucket, key = item.Key, prefix = Model.CurrentPrefix })" data-confirm="Delete &quot;@item.Name&quot;?">Delete</a></li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        }
+        @if (Model.Items.Count == 0)
+        {
+            <div class="ds-empty" id="emptyFolderState">
+                <div class="ds-empty-icon" style="font-size: 2.5rem;">📂</div>
+                <p class="ds-empty-title mb-1">This folder is empty</p>
+                <p class="ds-empty-sub mb-3">Upload a file or create a folder to get started.</p>
+                <a class="ds-btn ds-btn-primary me-2" asp-page="/Upload" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@Model.CurrentPrefix">Upload file</a>
+                <a class="ds-btn ds-btn-outline" asp-page="/CreateFolder" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@Model.CurrentPrefix">New folder</a>
+            </div>
+        }
+        <div class="ds-empty" id="noSearchResults" hidden style="padding: var(--ds-space-6);">
+            <div class="ds-empty-icon">🔍</div>
+            <p class="ds-empty-title mb-1">No matches</p>
+            <p class="ds-empty-sub mb-0">Try a different search or filter.</p>
+        </div>
+        @if (Model.NextListToken != null || Model.ListToken != null)
+        {
+            <div class="d-flex gap-2 p-3" style="border-top: 1px solid var(--ds-border);">
+                @if (Model.ListToken != null)
+                {
+                    <a class="ds-btn ds-btn-outline ds-btn-sm" asp-page="/Index" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@Model.CurrentPrefix">← First page</a>
+                }
+                @if (Model.NextListToken != null)
+                {
+                    <a class="ds-btn ds-btn-outline ds-btn-sm ms-auto" asp-page="/Index" asp-route-bucket="@Model.CurrentBucket" asp-route-prefix="@Model.CurrentPrefix" asp-route-listToken="@Model.NextListToken">Next 200 →</a>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Preview modal -->
+    <div class="ds-modal" id="previewModal" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle" hidden>
+        <div class="ds-modal-backdrop" id="previewModalBackdrop"></div>
+        <div class="ds-modal-box" id="previewModalBox">
+            <div class="ds-modal-header">
+                <h2 class="ds-modal-title" id="previewModalTitle">Preview</h2>
+                <button type="button" class="ds-modal-close" id="previewModalClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="ds-modal-body">
+                <div id="previewImageWrap" class="ds-preview-image-wrap" hidden>
+                    <img id="previewImage" alt="Preview" class="ds-preview-image" />
+                </div>
+                <div id="previewPdfWrap" class="ds-preview-pdf-wrap" hidden>
+                    <iframe id="previewPdf" title="PDF preview" class="ds-preview-iframe"></iframe>
+                </div>
+                <div id="previewUnsupported" class="ds-preview-unsupported" hidden>
+                    <p class="ds-body mb-3" style="color: var(--ds-muted-foreground);">Preview is not available for this file type.</p>
+                    <a id="previewDownloadFallback" class="ds-btn ds-btn-primary" href="#">Download</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard shortcuts help -->
+    <div class="ds-shortcuts-help" id="shortcutsHelp" hidden aria-label="Keyboard shortcuts">
+        <div class="ds-shortcuts-help-box">
+            <h3>Keyboard shortcuts</h3>
+            <dl>
+                <dt><kbd>/</kbd></dt>
+                <dd>Focus search</dd>
+                <dt><kbd>Esc</kbd></dt>
+                <dd>Clear search or close modal</dd>
+                <dt><kbd>?</kbd></dt>
+                <dd>Show this help</dd>
+            </dl>
+            <p class="ds-body mt-3 mb-0" style="color: var(--ds-muted-foreground); font-size: 12px;">Press Esc or click outside to close.</p>
+        </div>
+    </div>
+
+    <!-- Confirm modal (delete / bulk delete) -->
+    <div class="ds-modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle" hidden>
+        <div class="ds-modal-backdrop" id="confirmModalBackdrop"></div>
+        <div class="ds-modal-box" style="max-width: 24rem;">
+            <div class="ds-modal-header">
+                <h2 class="ds-modal-title" id="confirmModalTitle">Confirm</h2>
+                <button type="button" class="ds-modal-close" id="confirmModalClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="ds-modal-body" style="justify-content: flex-start; text-align: left;">
+                <p class="ds-body mb-0" id="confirmModalMessage"></p>
+                <div class="ds-confirm-actions">
+                    <button type="button" class="ds-btn ds-btn-outline" id="confirmModalCancel">Cancel</button>
+                    <a id="confirmModalConfirm" class="ds-btn ds-btn-destructive" href="#">Delete</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+(function() {
+    var searchBox = document.getElementById('searchBox');
+    var filterType = document.getElementById('filterType');
+    var resultCount = document.getElementById('searchResultCount');
+    var rows = document.querySelectorAll('.ds-list-row');
+    var tableWrap = document.querySelector('.ds-file-table-wrap');
+    var cardsWrap = document.getElementById('fileListCards');
+    var noSearchResults = document.getElementById('noSearchResults');
+    function applyFilter() {
+        var q = (searchBox && searchBox.value) ? searchBox.value.trim().toLowerCase() : '';
+        var type = filterType ? filterType.value : 'all';
+        var visible = 0;
+        rows.forEach(function(tr) {
+            var name = (tr.getAttribute('data-search-name') || '').toLowerCase();
+            var itemType = tr.getAttribute('data-item-type') || '';
+            var matchSearch = !q || name.indexOf(q) !== -1;
+            var matchType = type === 'all' || itemType === type;
+            var show = matchSearch && matchType;
+            tr.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        if (resultCount) resultCount.textContent = visible + ' of ' + rows.length + ' items';
+        if (noSearchResults && tableWrap && cardsWrap) {
+            if (rows.length > 0 && visible === 0) {
+                noSearchResults.hidden = false;
+                tableWrap.style.display = 'none';
+                cardsWrap.style.display = 'none';
+            } else {
+                noSearchResults.hidden = true;
+                tableWrap.style.display = '';
+                cardsWrap.style.display = ''; /* CSS media query will hide on desktop, show on mobile */
+            }
+        }
+    }
+    if (searchBox) searchBox.addEventListener('input', applyFilter);
+    if (filterType) filterType.addEventListener('change', applyFilter);
+    applyFilter();
+
+    var selectAll = document.getElementById('selectAll');
+    var bulkKeys = document.querySelectorAll('.bulk-key');
+    var bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    var confirmModal = document.getElementById('confirmModal');
+    var confirmMessage = document.getElementById('confirmModalMessage');
+    var confirmLink = document.getElementById('confirmModalConfirm');
+    var confirmCancel = document.getElementById('confirmModalCancel');
+    var confirmClose = document.getElementById('confirmModalClose');
+    var confirmBackdrop = document.getElementById('confirmModalBackdrop');
+    function openConfirm(msg, url) {
+        if (!confirmModal) return;
+        confirmMessage.textContent = msg;
+        confirmLink.href = url || '#';
+        confirmModal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        confirmCancel.focus();
+    }
+    function closeConfirm() {
+        if (confirmModal) { confirmModal.hidden = true; document.body.style.overflow = ''; }
+    }
+    if (confirmCancel) confirmCancel.addEventListener('click', closeConfirm);
+    if (confirmClose) confirmClose.addEventListener('click', closeConfirm);
+    if (confirmBackdrop) confirmBackdrop.addEventListener('click', closeConfirm);
+    if (confirmLink) confirmLink.addEventListener('click', function() { closeConfirm(); });
+    document.querySelectorAll('.ds-confirm-link').forEach(function(a) {
+        a.addEventListener('click', function(e) {
+            e.preventDefault();
+            var msg = a.getAttribute('data-confirm') || 'Are you sure?';
+            openConfirm(msg, a.getAttribute('href'));
+        });
+    });
+    if (selectAll && bulkKeys.length) {
+        bulkDeleteBtn.style.display = '';
+        selectAll.addEventListener('change', function() { bulkKeys.forEach(function(c){ c.checked = selectAll.checked; }); });
+        bulkKeys.forEach(function(c){ c.addEventListener('change', function() { selectAll.checked = Array.from(bulkKeys).every(function(x){ return x.checked; }); }); });
+        bulkDeleteBtn.addEventListener('click', function() {
+            var keys = Array.from(document.querySelectorAll('.bulk-key:checked')).map(function(c){ return c.value; });
+            if (keys.length === 0) { if (window.showToast) window.showToast('error', 'Select at least one file.'); return; }
+            var ctx = document.getElementById('bulkContext');
+            var params = new URLSearchParams();
+            if (ctx) { params.set('bucket', ctx.getAttribute('data-bucket') || ''); var p = ctx.getAttribute('data-prefix'); if (p) params.set('prefix', p); }
+            keys.forEach(function(k){ params.append('key', k); });
+            openConfirm('Delete ' + keys.length + ' selected file(s)? This cannot be undone.', '/BulkDelete?' + params.toString());
+        });
+    }
+    var shortcutsHelp = document.getElementById('shortcutsHelp');
+    document.addEventListener('keydown', function(e) {
+        if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target || {}).tagName)) {
+            e.preventDefault();
+            if (shortcutsHelp) { shortcutsHelp.hidden = false; shortcutsHelp.addEventListener('click', function closeHelp(ev) { if (ev.target === shortcutsHelp) { shortcutsHelp.hidden = true; shortcutsHelp.removeEventListener('click', closeHelp); } }); }
+        }
+        if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target || {}).tagName)) {
+            e.preventDefault();
+            if (searchBox) { searchBox.focus(); searchBox.select && searchBox.select(); }
+        }
+        if (e.key === 'Escape') {
+            if (shortcutsHelp && !shortcutsHelp.hidden) { shortcutsHelp.hidden = true; e.preventDefault(); return; }
+            if (confirmModal && !confirmModal.hidden) { closeConfirm(); e.preventDefault(); return; }
+            var previewModal = document.getElementById('previewModal');
+            if (previewModal && !previewModal.hidden) return;
+            if (searchBox && document.activeElement === searchBox) { searchBox.value = ''; searchBox.blur(); applyFilter(); e.preventDefault(); }
+        }
+    });
+})();
+</script>
+<script>
+(function() {
+    var modal = document.getElementById('previewModal');
+    var backdrop = document.getElementById('previewModalBackdrop');
+    var box = document.getElementById('previewModalBox');
+    var closeBtn = document.getElementById('previewModalClose');
+    var imageWrap = document.getElementById('previewImageWrap');
+    var imageEl = document.getElementById('previewImage');
+    var pdfWrap = document.getElementById('previewPdfWrap');
+    var pdfEl = document.getElementById('previewPdf');
+    var unsupportedWrap = document.getElementById('previewUnsupported');
+    var downloadFallback = document.getElementById('previewDownloadFallback');
+
+    function openPreview(type, url, name) {
+        imageWrap.hidden = true;
+        pdfWrap.hidden = true;
+        unsupportedWrap.hidden = true;
+        imageEl.removeAttribute('src');
+        pdfEl.removeAttribute('src');
+
+        if (type === 'image') {
+            imageWrap.hidden = false;
+            imageEl.src = url;
+            imageEl.alt = name || 'Preview';
+        } else if (type === 'pdf') {
+            pdfWrap.hidden = false;
+            pdfEl.src = url;
+        } else {
+            unsupportedWrap.hidden = false;
+            downloadFallback.href = url.replace('/Preview?', '/Download?');
+        }
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        closeBtn.focus();
+    }
+
+    function closePreview() {
+        modal.hidden = true;
+        document.body.style.overflow = '';
+        imageEl.removeAttribute('src');
+        pdfEl.removeAttribute('src');
+    }
+
+    document.querySelectorAll('.preview-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            openPreview(btn.getAttribute('data-preview-type'), btn.getAttribute('data-preview-url'), btn.getAttribute('data-name'));
+        });
+    });
+    closeBtn.addEventListener('click', closePreview);
+    backdrop.addEventListener('click', closePreview);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !modal.hidden) closePreview();
+    });
+})();
+</script>
+}
+
+@functions
+{
+    static string FormatSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        int order = 0;
+        double len = bytes;
+        while (len >= 1024 && order < sizes.Length - 1) { len /= 1024; order++; }
+        return $"{len:0.##} {sizes[order]}";
+    }
+
+    static string GetPreviewType(string name)
+    {
+        var ext = System.IO.Path.GetExtension(name).ToLowerInvariant();
+        if (string.IsNullOrEmpty(ext)) return "none";
+        if (ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".svg" or ".bmp" or ".ico") return "image";
+        if (ext is ".pdf") return "pdf";
+        return "none";
+    }
+
+    static string GetFileTypeClass(string name)
+    {
+        var ext = System.IO.Path.GetExtension(name).ToLowerInvariant();
+        if (string.IsNullOrEmpty(ext)) return "";
+        if (ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".svg" or ".bmp" or ".ico") return "img";
+        if (ext is ".pdf") return "pdf";
+        if (ext is ".doc" or ".docx" or ".odt" or ".rtf") return "doc";
+        if (ext is ".xls" or ".xlsx" or ".ods" or ".csv") return "sheet";
+        if (ext is ".zip" or ".rar" or ".7z" or ".tar" or ".gz") return "archive";
+        return "";
+    }
+
+    static string GetFileTypeIcon(string name)
+    {
+        var c = GetFileTypeClass(name);
+        return c switch { "img" => "🖼", "pdf" => "📕", "doc" => "📄", "sheet" => "📊", "archive" => "📦", _ => "📄" };
+    }
+}

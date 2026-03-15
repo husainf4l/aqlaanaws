@@ -1,0 +1,29 @@
+@page
+@model FolderActionModel
+@{
+    ViewData["Title"] = Model.Action == "move" ? "Move folder" : "Copy folder";
+    var verb = Model.Action == "move" ? "Move" : "Copy";
+}
+
+<a class="ds-back" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.ParentPrefix">&larr; Back to folder</a>
+
+<h2 class="ds-title mb-2">@verb folder</h2>
+<p class="ds-body mb-3" style="color: var(--ds-muted-foreground);">
+    @verb <strong>@Model.SourceFolderName</strong> to a new location. Enter the full destination path (e.g. <code>parent/new-name</code> or <code>other-folder</code>).
+</p>
+
+<form method="post" class="ds-card p-4" style="max-width: 28rem;">
+    <div class="mb-3">
+        <label class="form-label ds-label" for="DestPrefix">Destination path</label>
+        <input type="text" class="form-control ds-input" id="DestPrefix" name="DestPrefix" value="@Model.DestPrefix" placeholder="e.g. parent/new-folder-name" />
+        <span class="ds-body-sm" style="color: var(--ds-muted-foreground);">Use path relative to bucket root. To rename, use same parent and a new name.</span>
+    </div>
+    <div asp-validation-summary="All" class="ds-alert ds-alert-destructive mb-3"></div>
+    <input type="hidden" asp-for="Bucket" />
+    <input type="hidden" asp-for="Prefix" />
+    <input type="hidden" asp-for="Action" />
+    <div class="d-flex gap-2">
+        <button type="submit" class="ds-btn @(Model.Action == "move" ? "ds-btn-primary" : "ds-btn-outline")">@verb</button>
+        <a class="ds-btn ds-btn-outline" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.Prefix">Cancel</a>
+    </div>
+</form>

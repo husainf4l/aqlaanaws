@@ -1,0 +1,68 @@
+@page
+@model AqlaAwsS3Manager.Pages.Account.S3ProfileModel
+@{
+    ViewData["Title"] = "My S3 profile";
+}
+
+<h2 class="ds-title mb-2">My S3 profile</h2>
+<p class="ds-body mb-4" style="color: var(--ds-muted-foreground);">Credentials are encrypted and used only for your own S3 access.</p>
+
+@if (TempData["S3ProfileMessage"] is string msg)
+{
+    <div class="ds-alert ds-alert-success mb-4">@msg</div>
+}
+
+<form method="post" style="max-width: 40rem;">
+    <div asp-validation-summary="ModelOnly" class="ds-alert ds-alert-destructive mb-3"></div>
+
+    <div class="ds-card overflow-hidden mb-4">
+        <div class="ds-section-label">Account</div>
+        <div class="p-4">
+            <div class="mb-3">
+                <label asp-for="Input.DisplayName" class="ds-label"></label>
+                <input asp-for="Input.DisplayName" class="form-control ds-input" />
+                <span asp-validation-for="Input.DisplayName" class="text-danger small"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-card overflow-hidden mb-4">
+        <div class="ds-section-label">S3 Connection</div>
+        <div class="p-4">
+            <div class="mb-3">
+                <label asp-for="Input.Region" class="ds-label"></label>
+                <input asp-for="Input.Region" class="form-control ds-input" placeholder="e.g. us-east-1, eu-west-1, me-central-1" />
+                <span asp-validation-for="Input.Region" class="text-danger small"></span>
+            </div>
+            <div class="mb-0">
+                <label asp-for="Input.BucketName" class="ds-label"></label>
+                <input asp-for="Input.BucketName" class="form-control ds-input" />
+                <span asp-validation-for="Input.BucketName" class="text-danger small"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-card overflow-hidden mb-4">
+        <div class="ds-section-label">Credentials</div>
+        <div class="p-4">
+            <div class="mb-3">
+                <label asp-for="Input.AccessKey" class="ds-label"></label>
+                <input asp-for="Input.AccessKey" class="form-control ds-input" autocomplete="off" />
+                <span asp-validation-for="Input.AccessKey" class="text-danger small"></span>
+                <span class="ds-helper">We don't display saved keys. Enter the key you want us to store now.</span>
+            </div>
+            <div class="mb-0">
+                <label asp-for="Input.SecretKey" class="ds-label"></label>
+                <input asp-for="Input.SecretKey" class="form-control ds-input" autocomplete="off" />
+                <span asp-validation-for="Input.SecretKey" class="text-danger small"></span>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="ds-btn ds-btn-primary">Save</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+

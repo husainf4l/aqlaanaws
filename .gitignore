@@ -1,0 +1,13 @@
+bin/
+obj/
+/app.db
+
+# User secrets / environment files
+.env
+.env.*
+
+# IDE / tooling
+.vs/
+.vscode/
+.DS_Store
+

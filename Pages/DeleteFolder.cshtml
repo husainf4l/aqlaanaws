@@ -1,0 +1,19 @@
+@page
+@model DeleteFolderModel
+@{
+    ViewData["Title"] = "Delete folder";
+}
+
+<a class="ds-back" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.CurrentPrefix">&larr; Back to folder</a>
+
+<h2 class="ds-title mb-2">Delete folder</h2>
+<p class="ds-body mb-1">Are you sure you want to delete the folder <strong>@Model.FolderName</strong>?</p>
+<p class="ds-body mb-4" style="color: var(--ds-muted-foreground); font-size: 13px;">All files and subfolders inside it will be permanently deleted. This cannot be undone.</p>
+
+<form method="post" class="d-flex gap-2">
+    <input type="hidden" asp-for="Bucket" />
+    <input type="hidden" asp-for="Prefix" />
+    <input type="hidden" asp-for="CurrentPrefix" />
+    <button type="submit" class="ds-btn ds-btn-destructive">Delete folder</button>
+    <a class="ds-btn ds-btn-outline" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.CurrentPrefix">Cancel</a>
+</form>

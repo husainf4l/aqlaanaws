@@ -1,0 +1,51 @@
+@page
+@model RegisterModel
+@{
+    ViewData["Title"] = "Register";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <h2 class="ds-title mb-2">Register</h2>
+        <p class="ds-body mb-4" style="color: var(--ds-muted-foreground);">Create an account to access S3 Storage Manager.</p>
+
+        <form method="post" class="ds-card p-4">
+            <div asp-validation-summary="ModelOnly" class="ds-alert ds-alert-destructive mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="Input.Email" class="form-label ds-caption d-block mb-1"></label>
+                <input asp-for="Input.Email" class="form-control ds-input" autocomplete="username" />
+                <span asp-validation-for="Input.Email" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.DisplayName" class="form-label ds-caption d-block mb-1"></label>
+                <input asp-for="Input.DisplayName" class="form-control ds-input" autocomplete="name" />
+                <span asp-validation-for="Input.DisplayName" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.Password" class="form-label ds-caption d-block mb-1"></label>
+                <input asp-for="Input.Password" class="form-control ds-input" autocomplete="new-password" />
+                <span asp-validation-for="Input.Password" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="Input.ConfirmPassword" class="form-label ds-caption d-block mb-1"></label>
+                <input asp-for="Input.ConfirmPassword" class="form-control ds-input" autocomplete="new-password" />
+                <span asp-validation-for="Input.ConfirmPassword" class="text-danger small"></span>
+            </div>
+
+            <input type="hidden" asp-for="ReturnUrl" />
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="ds-btn ds-btn-primary">Register</button>
+                <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl" class="ds-btn ds-btn-outline">Already have an account?</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

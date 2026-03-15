@@ -1,0 +1,68 @@
+@page
+@model BulkDeleteModel
+@{
+    ViewData["Title"] = "Delete selected";
+}
+
+<a class="ds-back" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.Prefix">&larr; Back to folder</a>
+
+<div style="max-width: 32rem;">
+    <h2 class="ds-title mb-1">Delete @Model.Keys.Count item@(Model.Keys.Count == 1 ? "" : "s")?</h2>
+    <p class="ds-body mb-5" style="color: var(--ds-muted-foreground);">
+        This will permanently delete @Model.Keys.Count item@(Model.Keys.Count == 1 ? "" : "s") from <strong>@Model.Bucket</strong>. This cannot be undone.
+    </p>
+
+    <div class="ds-card mb-5" style="overflow:hidden;">
+        <div style="padding: 12px 16px; background: var(--ds-muted); border-bottom: 1px solid var(--ds-border);">
+            <span class="ds-caption">Items to be deleted</span>
+        </div>
+        <ul style="list-style:none;margin:0;padding:0;max-height:220px;overflow-y:auto;">
+            @foreach (var key in Model.Keys.Take(50))
+            {
+                <li style="padding: 8px 16px; border-bottom: 1px solid var(--ds-border); font-size:0.875rem; font-family: ui-monospace, 'SF Mono', Menlo, monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ds-foreground);">
+                    @{
+                        var parts = key.TrimEnd('/').Split('/');
+                        var fileName = parts[^1];
+                        var dir = parts.Length > 1 ? string.Join("/", parts[..^1]) + "/" : "";
+                    }
+                    @if (!string.IsNullOrEmpty(dir))
+                    {
+                        <span style="color:var(--ds-muted-foreground);">@dir</span>
+                    }
+                    <strong>@fileName</strong>
+                </li>
+            }
+            @if (Model.Keys.Count > 50)
+            {
+                <li style="padding: 10px 16px; font-size:0.875rem; color:var(--ds-muted-foreground); border-bottom: none; text-align:center;">
+                    + @(Model.Keys.Count - 50) more item@(Model.Keys.Count - 50 == 1 ? "" : "s")
+                </li>
+            }
+        </ul>
+    </div>
+
+    <form method="post" class="d-flex gap-2">
+        <input type="hidden" asp-for="Bucket" />
+        <input type="hidden" asp-for="Prefix" />
+        @for (var i = 0; i < Model.Keys.Count; i++)
+        {
+            <input type="hidden" name="Keys" value="@Model.Keys[i]" />
+        }
+        <button type="submit" class="ds-btn ds-btn-destructive" id="deleteBtn">
+            Delete @Model.Keys.Count item@(Model.Keys.Count == 1 ? "" : "s")
+        </button>
+        <a class="ds-btn ds-btn-outline" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.Prefix">Cancel</a>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+document.querySelector('form').addEventListener('submit', function() {
+    var btn = document.getElementById('deleteBtn');
+    if (btn && !btn.disabled) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="ds-spinner" style="border-color:rgba(255,255,255,0.3);border-top-color:#fff;"></span>Deleting\u2026';
+    }
+});
+</script>
+}

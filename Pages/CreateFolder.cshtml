@@ -1,0 +1,26 @@
+@page
+@model CreateFolderModel
+@{
+    ViewData["Title"] = "New folder";
+}
+
+<a class="ds-back" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.Prefix">&larr; Back to folder</a>
+
+<h2 class="ds-title mb-2">New folder</h2>
+<p class="ds-body mb-4" style="color: var(--ds-muted-foreground);">Bucket: <strong>@Model.Bucket</strong>@(string.IsNullOrEmpty(Model.Prefix) ? "" : $" / {Model.Prefix}")</p>
+
+@if (TempData["Error"] is string err)
+{
+    <div class="ds-alert ds-alert-destructive mb-4">@err</div>
+}
+
+<form method="post" class="ds-card p-4" style="max-width: 32rem;">
+    <div class="mb-3">
+        <label for="folderName" class="form-label ds-caption d-block mb-1">Folder name</label>
+        <input type="text" class="form-control ds-input" id="folderName" asp-for="FolderName" placeholder="e.g. my-folder" required />
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="ds-btn ds-btn-primary">Create</button>
+        <a class="ds-btn ds-btn-outline" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.Prefix">Cancel</a>
+    </div>
+</form>

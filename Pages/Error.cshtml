@@ -1,0 +1,17 @@
+﻿@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="text-center py-5">
+    <h2 class="ds-title mb-2" style="color: var(--ds-red);">Something went wrong</h2>
+    <p class="ds-body mb-4" style="color: var(--ds-muted-foreground);">An error occurred while processing your request.</p>
+
+    @if (Model.ShowRequestId)
+    {
+        <p class="ds-footnote mb-4">Request ID: <code class="ds-mono">@Model.RequestId</code></p>
+    }
+
+    <a asp-page="/Index" class="ds-btn ds-btn-primary">Back to home</a>
+</div>

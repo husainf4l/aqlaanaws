@@ -1,0 +1,11 @@
+@page
+@model AccessDeniedModel
+@{
+    ViewData["Title"] = "Access denied";
+}
+
+<div class="text-center py-5">
+    <h2 class="ds-title mb-2">Access denied</h2>
+    <p class="ds-body mb-4" style="color: var(--ds-muted-foreground);">You do not have permission to access this resource.</p>
+    <a asp-page="/Index" class="ds-btn ds-btn-primary">Back to home</a>
+</div>

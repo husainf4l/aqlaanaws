@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/alhussein/repos/aqlaanaws -name *Test* -o -name *test* -o -name *.Tests.*)",
+      "Bash(dotnet build:*)"
+    ]
+  }
+}

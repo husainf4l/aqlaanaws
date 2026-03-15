@@ -1,0 +1,140 @@
+@page
+@model UploadModel
+@{
+    ViewData["Title"] = "Upload file";
+}
+
+<a class="ds-back" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.Prefix">&larr; Back to folder</a>
+
+<h2 class="ds-title mb-1">Upload file</h2>
+<p class="ds-body mb-5" style="color: var(--ds-muted-foreground);">
+    <strong>@Model.Bucket</strong>@(string.IsNullOrEmpty(Model.Prefix) ? "" : $" › {Model.Prefix}")
+</p>
+
+@if (TempData["Error"] is string err)
+{
+    <div class="ds-alert ds-alert-destructive mb-4" role="alert">@err</div>
+}
+
+<form method="post" enctype="multipart/form-data" id="uploadForm" style="max-width: 30rem;">
+    <div class="ds-drop-zone mb-4" id="dropZone">
+        <div id="dropZoneContent" style="text-align:center;">
+            <span class="ds-drop-zone-icon">☁️</span>
+            <p class="ds-drop-zone-label mb-1">Choose a file to upload</p>
+            <p class="ds-drop-zone-sub mb-4">or drag and drop it here</p>
+            <label class="ds-btn ds-btn-outline" for="file" style="cursor:pointer;">
+                Browse file
+            </label>
+            <input type="file" id="file" name="UploadedFile" required
+                   style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;"
+                   aria-label="Choose a file" />
+        </div>
+        <div id="filePreview" hidden style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:1.75rem;" id="filePreviewIcon">📄</span>
+            <div style="flex:1;min-width:0;">
+                <div id="fileName" style="font-weight:500;font-size:0.9375rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+                <div id="fileSize" class="ds-file-hint"></div>
+            </div>
+            <button type="button" class="ds-btn-icon" id="clearFile" aria-label="Remove file" title="Remove file" style="color:var(--ds-muted-foreground);">✕</button>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="ds-btn ds-btn-primary" id="uploadBtn" disabled>Upload</button>
+        <a class="ds-btn ds-btn-outline" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.Prefix">Cancel</a>
+    </div>
+    <p class="ds-file-hint mt-3">Maximum file size: 5 GB</p>
+</form>
+
+@section Scripts {
+<script>
+(function() {
+    var form = document.getElementById('uploadForm');
+    var dropZone = document.getElementById('dropZone');
+    var input = document.getElementById('file');
+    var content = document.getElementById('dropZoneContent');
+    var preview = document.getElementById('filePreview');
+    var nameEl = document.getElementById('fileName');
+    var sizeEl = document.getElementById('fileSize');
+    var iconEl = document.getElementById('filePreviewIcon');
+    var clearBtn = document.getElementById('clearFile');
+    var uploadBtn = document.getElementById('uploadBtn');
+
+    var MAX_BYTES = 5 * 1024 * 1024 * 1024;
+
+    function formatSize(bytes) {
+        var units = ['B','KB','MB','GB'];
+        var i = 0; var n = bytes;
+        while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+        return n.toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+    }
+
+    function getIcon(name) {
+        var ext = (name.split('.').pop() || '').toLowerCase();
+        if (['jpg','jpeg','png','gif','webp','svg','bmp'].includes(ext)) return '🖼';
+        if (ext === 'pdf') return '📕';
+        if (['doc','docx','odt','rtf'].includes(ext)) return '📄';
+        if (['xls','xlsx','ods','csv'].includes(ext)) return '📊';
+        if (['zip','rar','7z','tar','gz'].includes(ext)) return '📦';
+        return '📄';
+    }
+
+    function showFile(file) {
+        if (!file) { showEmpty(); return; }
+        if (file.size > MAX_BYTES) {
+            if (window.showToast) window.showToast('error', 'File exceeds the 5 GB limit.');
+            input.value = '';
+            showEmpty();
+            return;
+        }
+        nameEl.textContent = file.name;
+        sizeEl.textContent = formatSize(file.size);
+        iconEl.textContent = getIcon(file.name);
+        content.hidden = true;
+        preview.hidden = false;
+        preview.style.display = 'flex';
+        uploadBtn.disabled = false;
+    }
+
+    function showEmpty() {
+        content.hidden = false;
+        preview.hidden = true;
+        preview.style.display = 'none';
+        uploadBtn.disabled = true;
+    }
+
+    input.addEventListener('change', function() { showFile(input.files && input.files[0]); });
+
+    clearBtn.addEventListener('click', function() { input.value = ''; showEmpty(); });
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', function(e) { dropZone.classList.remove('drag-over'); });
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        var file = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) {
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            showFile(file);
+        }
+    });
+
+    // Clicking the drop zone (but not the label/button) opens file picker
+    dropZone.addEventListener('click', function(e) {
+        if (e.target === dropZone || e.target === content || e.target.id === 'dropZoneContent') {
+            input.click();
+        }
+    });
+
+    form.addEventListener('submit', function() {
+        if (!uploadBtn.disabled) {
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<span class="ds-spinner"></span>Uploading\u2026';
+        }
+    });
+})();
+</script>
+}

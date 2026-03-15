@@ -1,0 +1,16 @@
+@page
+@model DeleteModel
+@{
+    ViewData["Title"] = "Delete object";
+}
+
+<a class="ds-back" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.Prefix">&larr; Back to folder</a>
+
+<h2 class="ds-title mb-2">Delete object</h2>
+<p class="ds-body mb-1">Are you sure you want to delete <strong>@Model.FileName</strong>?</p>
+<p class="ds-body mb-4" style="color: var(--ds-muted-foreground); font-size: 13px;">Key: @Model.Key</p>
+
+<form method="post" class="d-flex gap-2">
+    <button type="submit" class="ds-btn ds-btn-destructive">Delete</button>
+    <a class="ds-btn ds-btn-outline" asp-page="/Index" asp-route-bucket="@Model.Bucket" asp-route-prefix="@Model.Prefix">Cancel</a>
+</form>
