@@ -142,6 +142,21 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+
+    // Seed default admin user
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    const string seedEmail = "al-hussein@aqlaan.com";
+    if (await userManager.FindByEmailAsync(seedEmail) is null)
+    {
+        var seedUser = new ApplicationUser
+        {
+            UserName = seedEmail,
+            Email = seedEmail,
+            EmailConfirmed = true,
+            DisplayName = "Al-Hussein"
+        };
+        await userManager.CreateAsync(seedUser, "TT%%oo77");
+    }
 }
 
 app.Run();
